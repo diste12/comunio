@@ -7,6 +7,7 @@ import { sql } from "@/lib/db";
 import { endResidentSession, currentResident } from "@/lib/resident-session";
 import { requestMbWayForCharge } from "@/lib/services/references";
 import { createTicket, isOwner } from "@/lib/services/residents";
+import { castOwnerVote, checkInOnline } from "@/lib/services/assemblies";
 import { MAINTENANCE_CATEGORIES } from "@/lib/triage/rules";
 
 export type PortalState = { ok: boolean; message: string } | null;
@@ -45,4 +46,30 @@ export async function reportIssue(_prev: PortalState, form: FormData): Promise<P
 export async function logout() {
   await endResidentSession();
   redirect("/portal");
+}
+
+export async function checkInAction(): Promise<PortalState> {
+  const me = await currentResident();
+  if (!me || !isOwner(me)) return { ok: false, message: "Só proprietários podem participar." };
+  try {
+    await checkInOnline(me.condominiumId, me.fractionId);
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+  revalidatePath("/portal");
+  return { ok: true, message: "Presença registada." };
+}
+
+export async function voteAction(itemId: string, vote: string): Promise<PortalState> {
+  const me = await currentResident();
+  if (!me || !isOwner(me)) return { ok: false, message: "Só proprietários podem votar." };
+  const v = z.enum(["FAVOR", "CONTRA", "ABSTENCAO"]).safeParse(vote);
+  if (!v.success) return { ok: false, message: "Voto inválido." };
+  try {
+    await castOwnerVote(me.condominiumId, me.fractionId, z.uuid().parse(itemId), v.data);
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+  revalidatePath("/portal");
+  return { ok: true, message: "Voto registado." };
 }

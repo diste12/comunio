@@ -12,7 +12,8 @@ import {
   type ResidentContext,
 } from "@/lib/services/residents";
 import { ticketRef } from "@/lib/triage/ticket-ref";
-import { MbWayButton, ReportIssueForm } from "./_components";
+import { liveAssemblyForFraction } from "@/lib/services/assemblies";
+import { CheckInButton, LiveRefresh, MbWayButton, OwnerVote, ReportIssueForm } from "./_components";
 import { logout } from "./actions";
 
 const STATUS: Record<string, [string, string]> = {
@@ -57,6 +58,7 @@ async function Portal() {
           <button className="text-xs text-stone-500 underline">Sair</button>
         </form>
       </header>
+      {isOwner(me) && <LiveAssembly me={me} />}
       {isOwner(me) && <Billing me={me} />}
       <Tickets me={me} />
       <Assemblies me={me} />
@@ -84,7 +86,7 @@ async function Billing({ me }: { me: ResidentContext }) {
           <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">Valor em atraso: {formatEur(overdue)}</p>
         )}
         {payable.length === 0 ? (
-          <p className="text-sm text-stone-600">Está tudo pago. Obrigado! ✅</p>
+          <p className="text-sm text-stone-600">Sem quotas em atraso nem a vencer nos próximos 45 dias. ✅</p>
         ) : (
           <ul className="space-y-3">
             {payable.map((c) => (
@@ -200,5 +202,45 @@ async function Assemblies({ me }: { me: ResidentContext }) {
         </ul>
       )}
     </Section>
+  );
+}
+
+const VOTE_PT: Record<string, string> = { FAVOR: "a favor", CONTRA: "contra", ABSTENCAO: "abstenção" };
+
+/** Hybrid assembly: online check-in and voting while the session is live. */
+async function LiveAssembly({ me }: { me: ResidentContext }) {
+  const live = await liveAssemblyForFraction(me.condominiumId, me.fractionId);
+  if (!live) return null;
+  return (
+    <section className="rounded-xl border-2 border-brand-600 bg-white p-4">
+      <LiveRefresh />
+      <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-900">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-red-600" /> Assembleia a decorrer
+      </h2>
+      {live.onlineUrl && (
+        <a href={live.onlineUrl} target="_blank" className="mb-3 block text-sm text-brand-700 underline">
+          Entrar na videoconferência
+        </a>
+      )}
+      {!live.checkedIn ? (
+        live.remoteAllowed ? (
+          <CheckInButton />
+        ) : (
+          <p className="text-sm text-stone-600">Esta assembleia é apenas presencial.</p>
+        )
+      ) : live.openItem ? (
+        <div className="space-y-2">
+          <p className="text-sm">
+            Em votação — ponto {live.openItem.position}: <strong>{live.openItem.title}</strong>
+          </p>
+          <OwnerVote itemId={live.openItem.id} current={live.openItem.vote} />
+          {live.openItem.vote && <p className="text-xs text-brand-700">O seu voto ({VOTE_PT[live.openItem.vote]}) foi registado. Pode alterá-lo enquanto a votação estiver aberta.</p>}
+        </div>
+      ) : (
+        <p className="text-sm text-stone-600">
+          Presença registada ({live.mode === "ONLINE" ? "online" : "presencial"}). Aguarde a abertura da próxima votação.
+        </p>
+      )}
+    </section>
   );
 }

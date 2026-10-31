@@ -61,6 +61,8 @@ export type AgendaItem = {
   votingStatus: "PENDING" | "OPEN" | "CLOSED";
   notes: string | null;
   votes: Map<string, VoteChoice>;
+  /** Fractions whose vote was cast by the owner online (portal). */
+  ownerVotes: Set<string>;
   tally: Tally;
 };
 
@@ -86,8 +88,8 @@ export async function getAssembly(id: string) {
       select fraction_id, mode, representative_name from assembly_attendance where assembly_id = ${id}`,
     sql<{ id: string; position: number; title: string; required_majority: Majority; voting_status: AgendaItem["votingStatus"]; discussion_notes: string | null }[]>`
       select * from assembly_agenda_items where assembly_id = ${id} order by position`,
-    sql<{ agenda_item_id: string; fraction_id: string; vote: VoteChoice }[]>`
-      select v.agenda_item_id, v.fraction_id, v.vote from assembly_votes v
+    sql<{ agenda_item_id: string; fraction_id: string; vote: VoteChoice; cast_by: "ADMIN" | "OWNER" }[]>`
+      select v.agenda_item_id, v.fraction_id, v.vote, v.cast_by from assembly_votes v
       join assembly_agenda_items i on i.id = v.agenda_item_id where i.assembly_id = ${id}`,
   ]);
 
@@ -105,6 +107,7 @@ export async function getAssembly(id: string) {
     return {
       id: i.id, position: i.position, title: i.title, majority: i.required_majority, votingStatus: i.voting_status,
       notes: i.discussion_notes, votes,
+      ownerVotes: new Set(voteRows.filter((v) => v.agenda_item_id === i.id && v.cast_by === "OWNER").map((v) => v.fraction_id)),
       tally: tallyVotes({
         fractions, presentIds, majority: i.required_majority, call,
         votes: [...votes].map(([fractionId, vote]) => ({ fractionId, vote })),
@@ -306,8 +309,8 @@ export async function castVote(itemId: string, fractionId: string, vote: VoteCho
     await sql`delete from assembly_votes where agenda_item_id = ${itemId} and fraction_id = ${fractionId}`;
   } else {
     await sql`
-      insert into assembly_votes ${sql({ agenda_item_id: itemId, fraction_id: fractionId, vote })}
-      on conflict (agenda_item_id, fraction_id) do update set vote = excluded.vote, cast_at = now()`;
+      insert into assembly_votes ${sql({ agenda_item_id: itemId, fraction_id: fractionId, vote, cast_by: "ADMIN" })}
+      on conflict (agenda_item_id, fraction_id) do update set vote = excluded.vote, cast_by = 'ADMIN', cast_at = now()`;
   }
   return i.assembly_id;
 }
@@ -337,4 +340,48 @@ export async function appendTranscript(assemblyId: string, chunk: string) {
   await sql`
     update assemblies set transcript = case when coalesce(transcript, '') = '' then ${chunk} else transcript || E'\n\n' || ${chunk} end
     where id = ${assemblyId}`;
+}
+
+// ---------------------------------------------------------------------------
+// Hybrid participation (Lei 8/2022): owners join online from the portal
+// ---------------------------------------------------------------------------
+
+export async function liveAssemblyForFraction(condominiumId: string, fractionId: string) {
+  const [a] = await sql<{ id: string; online_url: string | null; session_call: number | null }[]>`
+    select id, online_url, session_call from assemblies
+    where condominium_id = ${condominiumId} and status = 'IN_PROGRESS' order by started_at desc limit 1`;
+  if (!a) return null;
+  const [[attendance], [item]] = await Promise.all([
+    sql<{ mode: string }[]>`select mode from assembly_attendance where assembly_id = ${a.id} and fraction_id = ${fractionId}`,
+    sql<{ id: string; position: number; title: string; vote: string | null }[]>`
+      select i.id, i.position, i.title,
+        (select vote from assembly_votes v where v.agenda_item_id = i.id and v.fraction_id = ${fractionId}) vote
+      from assembly_agenda_items i where i.assembly_id = ${a.id} and i.voting_status = 'OPEN' limit 1`,
+  ]);
+  return {
+    assemblyId: a.id,
+    onlineUrl: a.online_url,
+    remoteAllowed: Boolean(a.online_url),
+    checkedIn: Boolean(attendance),
+    mode: attendance?.mode ?? null,
+    openItem: item ?? null,
+  };
+}
+
+export async function checkInOnline(condominiumId: string, fractionId: string) {
+  const live = await liveAssemblyForFraction(condominiumId, fractionId);
+  if (!live) throw new AssemblyError("Não há nenhuma assembleia a decorrer.");
+  if (!live.remoteAllowed) throw new AssemblyError("Esta assembleia não admite participação por videoconferência.");
+  await sql`
+    insert into assembly_attendance ${sql({ assembly_id: live.assemblyId, fraction_id: fractionId, mode: "ONLINE" })}
+    on conflict (assembly_id, fraction_id) do nothing`;
+}
+
+export async function castOwnerVote(condominiumId: string, fractionId: string, itemId: string, vote: VoteChoice) {
+  const live = await liveAssemblyForFraction(condominiumId, fractionId);
+  if (!live?.checkedIn) throw new AssemblyError("Registe primeiro a sua presença.");
+  if (live.openItem?.id !== itemId) throw new AssemblyError("A votação deste ponto não está aberta.");
+  await sql`
+    insert into assembly_votes ${sql({ agenda_item_id: itemId, fraction_id: fractionId, vote, cast_by: "OWNER" })}
+    on conflict (agenda_item_id, fraction_id) do update set vote = excluded.vote, cast_by = 'OWNER', cast_at = now()`;
 }

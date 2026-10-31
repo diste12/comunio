@@ -79,8 +79,8 @@ export async function rfpsForTicket(ticketId: string) {
       from rfp_invitations i join vendors v on v.id = i.vendor_id left join vendor_quotes q on q.invitation_id = i.id
       where i.rfp_id = ${r.id} order by v.name`;
     const invoices = r.awarded_quote_id
-      ? await sql<{ id: string; invoice_number: string; amount: string; status: string; submitted_at: Date; approved_by: string | null }[]>`
-          select id, invoice_number, amount, status, submitted_at, approved_by from vendor_invoices
+      ? await sql<{ id: string; invoice_number: string; amount: string; status: string; submitted_at: Date; approved_by: string | null; has_file: boolean }[]>`
+          select id, invoice_number, amount, status, submitted_at, approved_by, file_data is not null has_file from vendor_invoices
           where quote_id = ${r.awarded_quote_id} order by submitted_at`
       : [];
     out.push({
@@ -164,12 +164,27 @@ export async function awardQuote(rfpId: string, quoteId: string) {
   }
 }
 
-export async function submitInvoice(token: string, input: { number: string; amountCents: number }) {
+export const MAX_INVOICE_BYTES = 4 * 1024 * 1024;
+
+export async function submitInvoice(
+  token: string,
+  input: { number: string; amountCents: number; file?: { name: string; type: string; data: Buffer } | null },
+) {
   const inv = await invitationByToken(token);
   if (!inv || !inv.awardedToMe) throw new RfpError("Só o fornecedor adjudicado pode submeter faturas.");
+  if (input.file && input.file.data.length > MAX_INVOICE_BYTES) throw new RfpError("Ficheiro acima de 4 MB.");
   await sql`
-    insert into vendor_invoices ${sql({ quote_id: inv.quote_id, invoice_number: input.number, amount: centsToDecimal(input.amountCents) })}
+    insert into vendor_invoices ${sql({
+      quote_id: inv.quote_id, invoice_number: input.number, amount: centsToDecimal(input.amountCents),
+      file_name: input.file?.name ?? null, file_type: input.file?.type ?? null, file_data: input.file?.data ?? null,
+    })}
     on conflict (quote_id, invoice_number) do nothing`;
+}
+
+export async function invoiceFile(invoiceId: string) {
+  const [f] = await sql<{ file_name: string; file_type: string; file_data: Buffer }[]>`
+    select file_name, file_type, file_data from vendor_invoices where id = ${invoiceId} and file_data is not null`;
+  return f ?? null;
 }
 
 export async function decideInvoice(invoiceId: string, approve: boolean, by: string) {

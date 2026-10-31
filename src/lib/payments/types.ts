@@ -39,13 +39,13 @@ export interface PaymentsProvider {
 
 /** Normalised payment notification, whatever channel it came from. */
 export type PaymentNotification = {
-  provider: "ifthenpay" | "mock";
+  provider: "ifthenpay" | "mock" | "bank";
   orderId: string | null;
   entity: string | null;
   reference: string | null;
   requestId: string | null;
   amountCents: number;
-  method: "MULTIBANCO" | "MBWAY";
+  method: "MULTIBANCO" | "MBWAY" | "TRANSFER";
   paidAt: Date;
   raw: Record<string, string>;
 };

@@ -33,6 +33,10 @@ export function InvoiceForm({ token }: { token: string }) {
         <label className="block text-sm font-medium">N.º da fatura<input name="number" required className={field} /></label>
         <label className="block text-sm font-medium">Valor (€)<input name="amount" required inputMode="decimal" className={field} /></label>
       </div>
+      <label className="block text-sm font-medium">
+        Ficheiro da fatura (PDF ou foto, máx. 4 MB)
+        <input name="file" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" className="mt-1 block w-full text-sm" />
+      </label>
       <button disabled={pending} className="w-full rounded-lg bg-brand-600 py-2.5 font-medium text-white disabled:opacity-50">Submeter fatura</button>
       {state && <p className={`text-sm ${state.ok ? "text-brand-700" : "text-red-700"}`}>{state.message}</p>}
     </form>

@@ -15,6 +15,10 @@ describe("parseIfthenpayCallback", () => {
     expect(n.method).toBe("MULTIBANCO");
     expect(n.paidAt.toISOString()).toBe("2027-01-05T14:03:22.000Z");
   });
+  it("converts Lisbon summer time (WEST) to UTC", () => {
+    const n = parseIfthenpayCallback({ orderId: "Q1", amount: "10", payment_datetime: "15-07-2027 14:03:22" })!;
+    expect(n.paidAt.toISOString()).toBe("2027-07-15T13:03:22.000Z");
+  });
   it("detects MB WAY", () => {
     const n = parseIfthenpayCallback({ orderId: "Q7", amount: "10,50", requestId: "abc", payment_method: "MBWAY" })!;
     expect(n.method).toBe("MBWAY");

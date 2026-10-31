@@ -5,7 +5,7 @@ import { MIN_OVERDUE_INSTALLMENTS } from "./collections";
 
 /** Everything waiting on the administrator's one-click decision. */
 export async function approvalsQueue() {
-  const [invoices, minutes, urgent, quotesReady, debtors, receiptErrors] = await Promise.all([
+  const [invoices, minutes, urgent, quotesReady, debtors, receiptErrors, bank] = await Promise.all([
     sql<{ id: string; ticket_id: string; vendor: string; invoice_number: string; amount: string; condo: string }[]>`
       select i.id, r.ticket_id, v.name vendor, i.invoice_number, i.amount, c.name condo
       from vendor_invoices i join vendor_quotes q on q.id = i.quote_id join vendors v on v.id = q.vendor_id
@@ -28,6 +28,7 @@ export async function approvalsQueue() {
           and not exists (select 1 from legal_letters l where l.fraction_id = q.fraction_id and l.sent_at > now() - interval '30 days')
         group by q.fraction_id having count(*) >= ${MIN_OVERDUE_INSTALLMENTS}) x`,
     sql<{ n: string }[]>`select count(*) n from quota_charges where payment_status = 'PAID' and moloni_document_id is null and moloni_error is not null`,
+    sql<{ n: string; suggested: string }[]>`select count(*) n, count(*) filter (where suggestion is not null) suggested from bank_transactions where status = 'UNMATCHED'`,
   ]);
   return {
     invoices: invoices.map((i) => ({ ...i, amountCents: toCents(i.amount) })),
@@ -36,5 +37,7 @@ export async function approvalsQueue() {
     quotesReady,
     debtorsWithoutLetter: Number(debtors[0].n),
     receiptErrors: Number(receiptErrors[0].n),
+    bankUnmatched: Number(bank[0].n),
+    bankSuggested: Number(bank[0].suggested),
   };
 }

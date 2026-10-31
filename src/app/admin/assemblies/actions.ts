@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { lisbonWallClockToDate } from "@/lib/dates";
 import {
   AssemblyError,
   castVote,
@@ -32,14 +33,6 @@ async function run(id: string, fn: () => Promise<string | void>): Promise<Action
   }
 }
 
-/** datetime-local inputs carry Lisbon wall-clock time without an offset. */
-function lisbonLocalToDate(value: string): Date {
-  const asUtc = new Date(`${value}:00Z`);
-  const lisbon = new Date(asUtc.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
-  const utc = new Date(asUtc.toLocaleString("en-US", { timeZone: "UTC" }));
-  return new Date(asUtc.getTime() - (lisbon.getTime() - utc.getTime()));
-}
-
 const createSchema = z.object({
   condominiumId: z.uuid(),
   kind: z.enum(["ORDINARIA", "EXTRAORDINARIA"]),
@@ -63,8 +56,8 @@ export async function createAssemblyAction(_prev: ActionState, form: FormData): 
     id = await createAssembly({
       condominiumId: parsed.data.condominiumId,
       kind: parsed.data.kind,
-      scheduledAt: lisbonLocalToDate(parsed.data.scheduledAt),
-      secondCallAt: parsed.data.secondCallAt ? lisbonLocalToDate(parsed.data.secondCallAt) : null,
+      scheduledAt: lisbonWallClockToDate(parsed.data.scheduledAt),
+      secondCallAt: parsed.data.secondCallAt ? lisbonWallClockToDate(parsed.data.secondCallAt) : null,
       location: parsed.data.location,
       onlineUrl: parsed.data.onlineUrl || null,
       agenda,

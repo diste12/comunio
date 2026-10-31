@@ -165,6 +165,7 @@ async function Ticket({ params }: { params: PageProps<"/admin/tickets/[id]">["pa
                     {r.invoices.map((inv) => (
                       <li key={inv.id} className="flex flex-wrap items-center gap-3">
                         <span className="font-mono">{inv.invoice_number}</span>
+                        {inv.has_file && <a href={`/admin/faturas/${inv.id}`} target="_blank" className="text-xs text-brand-700 underline">ficheiro</a>}
                         <span className="tabular-nums">{formatEur(inv.amountCents)}</span>
                         {awarded?.quote && inv.amountCents > awarded.quote.amountCents && <Badge tone="red">acima do orçamento</Badge>}
                         {inv.status === "PENDING_APPROVAL" ? (

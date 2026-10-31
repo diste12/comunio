@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseEuroInput } from "@/lib/money";
-import { submitInvoice, submitQuote } from "@/lib/services/rfps";
+import { MAX_INVOICE_BYTES, submitInvoice, submitQuote } from "@/lib/services/rfps";
 
 export type VendorState = { ok: boolean; message: string } | null;
 
@@ -37,8 +37,15 @@ export async function submitInvoiceAction(_prev: VendorState, form: FormData): P
   const parsed = invoiceSchema.safeParse(Object.fromEntries(form));
   const amount = parsed.success ? parseEuroInput(parsed.data.amount) : null;
   if (!parsed.success || !amount) return { ok: false, message: "Indique o número e o valor da fatura." };
+  const file = form.get("file");
+  let upload: { name: string; type: string; data: Buffer } | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_INVOICE_BYTES) return { ok: false, message: "Ficheiro acima de 4 MB." };
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) return { ok: false, message: "Envie a fatura em PDF, JPG ou PNG." };
+    upload = { name: file.name.slice(0, 255), type: file.type, data: Buffer.from(await file.arrayBuffer()) };
+  }
   try {
-    await submitInvoice(parsed.data.token, { number: parsed.data.number, amountCents: amount });
+    await submitInvoice(parsed.data.token, { number: parsed.data.number, amountCents: amount, file: upload });
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }

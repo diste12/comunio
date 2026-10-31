@@ -71,7 +71,11 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
         <Link href="/admin" className="text-xs text-stone-500 hover:underline">
           ← Carteira
         </Link>
-        <h1 className="mt-1 text-xl font-semibold">{condo.name}</h1>
+        <h1 className="mt-1 flex items-center gap-4 text-xl font-semibold">
+          {condo.name}
+          <Link href={`/admin/condominiums/${id}/residentes`} className="text-sm font-normal text-brand-700 hover:underline">Residentes</Link>
+          <Link href={`/admin/condominiums/${id}/definicoes`} className="text-sm font-normal text-brand-700 hover:underline">Definições</Link>
+        </h1>
         <p className="text-sm text-stone-600">
           NIF {condo.nif_condominio} · {condo.address}, {condo.postal_code} {condo.city}
           {condo.bank_iban_current && <> · IBAN <span className="font-mono text-xs">{condo.bank_iban_current}</span></>}

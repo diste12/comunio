@@ -1,3 +1,4 @@
+import { lisbonWallClockToDate } from "@/lib/dates";
 import { toCents } from "@/lib/money";
 import type { PaymentNotification } from "./types";
 
@@ -26,13 +27,13 @@ export function parseIfthenpayCallback(params: Record<string, string>): PaymentN
   };
 }
 
-/** Accepts "dd-MM-yyyy HH:mm:ss" (Ifthenpay style) or ISO 8601. Lisbon wall-clock is approximated as UTC. */
+/** Accepts "dd-MM-yyyy HH:mm:ss" (Ifthenpay style, Lisbon wall-clock) or ISO 8601. */
 function parsePaymentDate(value: string | undefined): Date | null {
   if (!value) return null;
   const pt = /^(\d{2})[-/](\d{2})[-/](\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?/.exec(value);
   if (pt) {
     const [, d, m, y, hh, mm, ss = "00"] = pt;
-    return new Date(`${y}-${m}-${d}T${hh}:${mm}:${ss}Z`);
+    return lisbonWallClockToDate(`${y}-${m}-${d}T${hh}:${mm}:${ss}`);
   }
   const iso = new Date(value);
   return Number.isNaN(iso.getTime()) ? null : iso;

@@ -23,7 +23,10 @@ Every external integration has an offline **mock** mode, so the whole product ru
 | **Convocations (Lei 8/2022)** | PDF notice; email if consent recorded, otherwise CTT registered mail; refuses < 10 days' notice | `src/lib/services/assemblies.ts` |
 | **Live assemblies** | Attendance (present / online / represented), live quorum, weighted voting with legal majority rules (1st/2nd call, 2/3, unanimity) | `src/lib/assembly/rules.ts`, `/admin/assemblies/[id]` |
 | **Minutes (ata)** | Whisper transcription + LLM discussion summaries; attendance, votes and per-fraction debt declaration (*título executivo*) generated from data; 1-click approval; PDF | `src/lib/services/minutes.ts` |
-| **3-quote engine** | "Request quotes" → 3 vendor capability links by email → comparison matrix → award → vendor invoice → 1-click payment approval | `src/lib/services/rfps.ts`, `/rfp/[token]` |
+| **3-quote engine** | "Request quotes" → 3 vendor capability links by email → comparison matrix → award → vendor invoice (PDF/photo upload, over-budget flag) → 1-click payment approval | `src/lib/services/rfps.ts`, `/rfp/[token]` |
+| **Bank reconciliation** | Salt Edge sync (daily cron) or statement CSV import; transfers matched to the oldest pending quotas by order ref, fraction or payer name, amount-only matches suggested for 1-click confirmation; receipts issued | `src/lib/bank/`, `src/lib/services/bank.ts`, `/admin/banco` |
+| **Hybrid assemblies** | Owners join online from the portal (when the assembly admits videoconference), check in and vote; the chair sees "via portal" votes live | `/portal`, `src/lib/services/assemblies.ts` |
+| **Onboarding** | New condominium + fractions/residents from CSV (permilagem must total 1000‰, NIF/phone validated); per-building Ifthenpay/Moloni/Salt Edge settings; resident editing with timestamped email consent (Lei 8/2022) | `/admin/condominiums/new`, `…/definicoes`, `…/residentes` |
 | **Pre-litigation** | Debtors with ≥3 overdue quotas; letter PDF; 1-click CTT registered mail with 30-day cooldown | `/admin/devedores` |
 | **Approvals inbox** | Urgent tickets, invoices to pay, quotes to award, minutes to sign, letters pending | `/admin` |
 
@@ -56,6 +59,11 @@ Demo path: **/admin/whatsapp** (simulate "quanto devo?", "o elevador está avari
 
 Checks: `pnpm test` · `pnpm typecheck` · `pnpm lint` · `pnpm build`
 
+End-to-end service flows against a real database (wipes it — use a dedicated one):
+```bash
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/comunio_test pnpm test:integration
+```
+
 ## Deploy (Vercel + Supabase)
 1. Create a Supabase project (EU region); `supabase link`, then `supabase db push`.
 2. Import the repo in Vercel; set env vars from `.env.example` (`DATABASE_URL` = transaction pooler URL).
@@ -75,5 +83,6 @@ https://<app>/api/webhooks/ifthenpay?key=[ANTI_PHISHING_KEY]&orderId=[ORDER_ID]&
 - **OpenAI:** the LLM triage and minutes paths have not been exercised against the live API; rule/template fallbacks are tested.
 - **CTT:** only a mock exists (tracking numbers in S10 format); no public CTT API was integrated.
 - **Audio uploads:** Vercel caps request bodies at 4.5 MB; long recordings must be split (or uploaded to Supabase Storage first).
-- Ifthenpay timestamps are stored as UTC (1h off in summer); the live assembly view refreshes by polling (3 s), not Realtime.
+- The live assembly view and portal refresh by polling (3–4 s), not Supabase Realtime.
+- **Salt Edge:** client written against v5 without network access to the docs; validate with sandbox credentials.
 - Legal texts (convocation, minutes, letters) should be reviewed by a Portuguese lawyer before use.

@@ -14,7 +14,12 @@ const pct = (v: number | null) => (v === null ? "—" : `${(v * 100).toFixed(1)}
 export default function AdminHome({ searchParams }: PageProps<"/admin">) {
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Carteira de condomínios</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Carteira de condomínios</h1>
+        <Link href="/admin/condominiums/new" className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+          + Novo condomínio
+        </Link>
+      </div>
       <Suspense fallback={<Skeleton rows={12} />}>
         <Portfolio searchParams={searchParams} />
       </Suspense>
@@ -122,6 +127,9 @@ function Approvals({ queue }: { queue: Awaited<ReturnType<typeof approvalsQueue>
     ...queue.invoices.map((i) => ({ key: `i${i.id}`, href: `/admin/tickets/${i.ticket_id}`, label: `Aprovar pagamento ${formatEur(i.amountCents)}`, detail: `${i.vendor} · fatura ${i.invoice_number} · ${i.condo}`, tone: "amber" as const })),
     ...queue.quotesReady.map((r) => ({ key: `q${r.ticket_id}`, href: `/admin/tickets/${r.ticket_id}`, label: `Adjudicar orçamento: ${r.category}`, detail: `3 propostas recebidas · ${r.condo}`, tone: "amber" as const })),
     ...queue.minutes.map((m) => ({ key: `m${m.assembly_id}`, href: `/admin/assemblies/${m.assembly_id}`, label: "Assinar ata", detail: `${m.condo} · ${fmtDateTime(m.scheduled_at)}`, tone: "amber" as const })),
+    ...(queue.bankUnmatched > 0
+      ? [{ key: "bank", href: "/admin/banco", label: `${queue.bankUnmatched} transferências por conciliar`, detail: `${queue.bankSuggested} com sugestão de 1 clique`, tone: "amber" as const }]
+      : []),
     ...(queue.debtorsWithoutLetter > 0
       ? [{ key: "debt", href: "/admin/devedores", label: `${queue.debtorsWithoutLetter} cartas de pré-contencioso por enviar`, detail: `≥ 3 prestações em atraso`, tone: "gray" as const }]
       : []),

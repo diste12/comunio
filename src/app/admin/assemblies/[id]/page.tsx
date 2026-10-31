@@ -233,7 +233,10 @@ function Live({ view }: { view: AssemblyView }) {
                   {openItem && (
                     <td className={td}>
                       {f.attendance && (
-                        <VoteButtons assemblyId={a.id} itemId={openItem.id} fractionId={f.fractionId} current={openItem.votes.get(f.fractionId) ?? null} disabled={!live} />
+                        <span className="inline-flex items-center gap-2">
+                          <VoteButtons assemblyId={a.id} itemId={openItem.id} fractionId={f.fractionId} current={openItem.votes.get(f.fractionId) ?? null} disabled={!live} />
+                          {openItem.ownerVotes.has(f.fractionId) && <span className="text-[11px] text-brand-700" title="Voto registado pelo proprietário no portal">via portal</span>}
+                        </span>
                       )}
                     </td>
                   )}

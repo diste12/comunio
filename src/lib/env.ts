@@ -38,6 +38,11 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Comunio <administracao@comunio.pt>"),
 
+  // Open banking (Salt Edge) for transfer reconciliation. "mock" fabricates transfers.
+  BANK_PROVIDER: z.enum(["mock", "saltedge"]).default("mock"),
+  SALTEDGE_APP_ID: z.string().optional(),
+  SALTEDGE_SECRET: z.string().optional(),
+
   // Registered mail (CTT). Only a mock exists for now.
   CTT_PROVIDER: z.enum(["mock"]).default("mock"),
 
