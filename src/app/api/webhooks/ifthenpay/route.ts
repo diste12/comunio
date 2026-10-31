@@ -1,4 +1,4 @@
-import { after, type NextRequest } from "next/server";
+import { connection, after, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { safeEqual } from "@/lib/http/secrets";
 import { parseIfthenpayCallback } from "@/lib/payments/callback";
@@ -10,6 +10,7 @@ import { applyPayment, issueReceiptForCharge } from "@/lib/services/reconcile";
  * response is sent. Receipt failures are retried by /api/cron/receipts.
  */
 async function handle(req: NextRequest) {
+  await connection(); // always per request, never prerendered
   const params: Record<string, string> = Object.fromEntries(req.nextUrl.searchParams);
   if (req.method === "POST") {
     const type = req.headers.get("content-type") ?? "";

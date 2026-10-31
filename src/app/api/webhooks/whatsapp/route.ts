@@ -1,11 +1,12 @@
-import { after, type NextRequest } from "next/server";
+import { after, connection, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { safeEqual } from "@/lib/http/secrets";
 import { parseInbound, verifyMetaSignature } from "@/lib/messaging/whatsapp";
 import { handleInboundWhatsApp } from "@/lib/triage/agent";
 
 /** Meta webhook verification handshake. */
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
+  await connection(); // always per request, never prerendered
   const p = req.nextUrl.searchParams;
   if (p.get("hub.mode") === "subscribe" && safeEqual(p.get("hub.verify_token"), env().WHATSAPP_VERIFY_TOKEN)) {
     return new Response(p.get("hub.challenge") ?? "", { status: 200 });

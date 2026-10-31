@@ -19,7 +19,7 @@ export type ResidentContext = {
   condominiumName: string;
 };
 
-const select = sql`
+const select = () => sql`
   select r.id, r.full_name, r.phone_number, r.email, r.role, f.id fraction_id, f.designation, f.permilagem,
          c.id condominium_id, c.name condominium_name
   from residents r join fractions f on f.id = r.fraction_id join condominiums c on c.id = f.condominium_id`;
@@ -36,12 +36,12 @@ const map = (r: Row): ResidentContext => ({
 
 /** A phone can belong to several fractions (owner of more than one unit). */
 export async function residentsByPhone(phone: string): Promise<ResidentContext[]> {
-  const rows = await sql<Row[]>`${select} where r.phone_number = ${phone} order by r.role, f.designation`;
+  const rows = await sql<Row[]>`${select()} where r.phone_number = ${phone} order by r.role, f.designation`;
   return rows.map(map);
 }
 
 export async function residentById(id: string): Promise<ResidentContext | null> {
-  const [row] = await sql<Row[]>`${select} where r.id = ${id}`;
+  const [row] = await sql<Row[]>`${select()} where r.id = ${id}`;
   return row ? map(row) : null;
 }
 

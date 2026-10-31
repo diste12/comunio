@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { connection, type NextRequest } from "next/server";
 import { sql } from "@/lib/db";
 import { env } from "@/lib/env";
 import { safeEqual } from "@/lib/http/secrets";
@@ -8,6 +8,7 @@ export const maxDuration = 300;
 
 /** Vercel Cron (daily): zero-touch Multibanco references for quotas due in the next 45 days, portfolio-wide. */
 export async function GET(req: NextRequest) {
+  await connection(); // always per request, never prerendered
   if (!safeEqual(req.headers.get("authorization")?.replace(/^Bearer /, ""), env().CRON_SECRET)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
