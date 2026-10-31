@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { UserMenu } from "./_components/user-menu";
 
 const NAV = [
@@ -26,7 +27,9 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
               </Link>
             ))}
           </nav>
-          <UserMenu enabled={Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)} />
+          <Suspense fallback={null}>
+            <UserMenu enabled={Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)} />
+          </Suspense>
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">{children}</main>
