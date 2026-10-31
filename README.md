@@ -65,6 +65,11 @@ TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/comunio_test pnpm 
 ```
 
 ## Deploy (Vercel + Supabase)
+
+After deploying, open **`/setup`**: it checks every required variable, the database connection
+(with specific hints, e.g. Supabase direct host vs. transaction pooler, wrong password) and whether
+migrations were applied. `/admin` redirects there while configuration is incomplete.
+
 1. Create a Supabase project (EU region); `supabase link`, then `supabase db push`.
 2. Import the repo in Vercel; set env vars from `.env.example` (`DATABASE_URL` = transaction pooler URL).
 3. Clerk keys + `ADMIN_EMAILS` (disable public sign-ups), `SESSION_SECRET`, `CRON_SECRET`.

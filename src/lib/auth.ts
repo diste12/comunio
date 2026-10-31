@@ -3,11 +3,12 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { env, isClerkConfigured } from "./env";
+import { adminConfigMissing } from "./setup";
 
 export type Admin = { userId: string; email: string | null };
 
 export function devBypassActive(): boolean {
-  return !isClerkConfigured() && process.env.NODE_ENV !== "production" && env().COMUNIO_DEV_AUTH_BYPASS === "1";
+  return !isClerkConfigured() && process.env.NODE_ENV !== "production" && process.env.COMUNIO_DEV_AUTH_BYPASS === "1";
 }
 
 /**
@@ -18,7 +19,8 @@ export async function requireAdmin(): Promise<Admin> {
   // Always a request-time check, never evaluated during prerendering.
   await connection();
   if (devBypassActive()) return { userId: "dev", email: "dev@localhost" };
-  if (!isClerkConfigured()) throw new Error("Clerk is not configured");
+  // Missing deployment configuration: explain instead of crashing (still fail closed).
+  if (adminConfigMissing().length > 0) redirect("/setup");
 
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
@@ -28,8 +30,7 @@ export async function requireAdmin(): Promise<Admin> {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   if (allowed.length === 0) {
-    if (process.env.NODE_ENV === "production") throw new Error("ADMIN_EMAILS must be set in production");
-    return { userId, email: null };
+    return { userId, email: null }; // dev only: production is caught by adminConfigMissing()
   }
   const user = await currentUser();
   const emails = user?.emailAddresses.map((e) => e.emailAddress.toLowerCase()) ?? [];
