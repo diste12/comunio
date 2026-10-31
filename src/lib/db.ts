@@ -1,6 +1,6 @@
 import "server-only";
 import postgres from "postgres";
-import { env } from "./env";
+import { needsTls, resolveDatabaseUrl } from "./database-url";
 
 declare global {
   var __comunioSql: postgres.Sql | undefined;
@@ -15,10 +15,15 @@ declare global {
  * is what the pooler requires.
  */
 function client(): postgres.Sql {
-  globalThis.__comunioSql ??= postgres(env().DATABASE_URL, {
-    max: process.env.NODE_ENV === "production" ? 5 : 10,
-    idle_timeout: 20,
-  });
+  if (!globalThis.__comunioSql) {
+    const url = resolveDatabaseUrl();
+    if (!url) throw new Error("Database not configured: set DATABASE_URL or connect the Supabase integration (POSTGRES_URL)");
+    globalThis.__comunioSql = postgres(url, {
+      max: process.env.NODE_ENV === "production" ? 5 : 10,
+      idle_timeout: 20,
+      ...(needsTls(url) ? { ssl: "require" as const } : {}),
+    });
+  }
   return globalThis.__comunioSql;
 }
 

@@ -2,7 +2,9 @@ import "server-only";
 import { z } from "zod";
 
 const schema = z.object({
-  DATABASE_URL: z.string().min(1),
+  // Resolved via resolveDatabaseUrl(): DATABASE_URL or the Supabase integration's POSTGRES_URL.
+  DATABASE_URL: z.string().optional(),
+  POSTGRES_URL: z.string().optional(),
   APP_URL: z.string().url().default("http://localhost:3000"),
 
   // Payments (Ifthenpay). "mock" works without credentials.

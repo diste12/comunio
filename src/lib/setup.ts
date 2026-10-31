@@ -1,5 +1,6 @@
 import "server-only";
 import postgres from "postgres";
+import { needsTls, resolveDatabaseUrl } from "./database-url";
 
 /**
  * Deployment self-check. Reads process.env directly (not env()) so a missing
@@ -14,7 +15,7 @@ const has = (name: string) => Boolean(process.env[name]?.trim());
 /** Configuration that /admin cannot work without (cheap, no I/O). */
 export function adminConfigMissing(): string[] {
   const missing: string[] = [];
-  if (!has("DATABASE_URL")) missing.push("DATABASE_URL");
+  if (!resolveDatabaseUrl()) missing.push("DATABASE_URL");
   if (!has("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY") || !has("CLERK_SECRET_KEY")) missing.push("CLERK");
   if (process.env.NODE_ENV === "production" && !has("ADMIN_EMAILS")) missing.push("ADMIN_EMAILS");
   return missing;
@@ -23,12 +24,15 @@ export function adminConfigMissing(): string[] {
 const REQUIRED_TABLES = ["condominiums", "assemblies", "bank_transactions"] as const;
 
 async function databaseChecks(): Promise<Check[]> {
-  if (!has("DATABASE_URL")) {
-    return [{ key: "db", label: "Ligação à base de dados", ok: false, hint: "Defina DATABASE_URL primeiro." }];
+  const url = resolveDatabaseUrl();
+  if (!url) {
+    return [{ key: "db", label: "Ligação à base de dados", ok: false, hint: "Configure a base de dados primeiro." }];
   }
-  const url = process.env.DATABASE_URL!;
   const directSupabaseHost = /@db\.[a-z0-9]+\.supabase\.co(:5432)?\//i.test(url);
-  const probe = postgres(url, { max: 1, connect_timeout: 6, idle_timeout: 1, onnotice: () => {} });
+  const probe = postgres(url, {
+    max: 1, connect_timeout: 6, idle_timeout: 1, onnotice: () => {},
+    ...(needsTls(url) ? { ssl: "require" as const } : {}),
+  });
   try {
     const [row] = await probe<{ c: boolean; a: boolean; b: boolean }[]>`
       select to_regclass('public.condominiums') is not null c,
@@ -71,7 +75,10 @@ export async function diagnose(): Promise<Check[]> {
   const secret = process.env.SESSION_SECRET ?? "";
   const appUrl = process.env.APP_URL ?? "";
   const checks: Check[] = [
-    { key: "DATABASE_URL", label: "DATABASE_URL definido", ok: has("DATABASE_URL"), hint: "Supabase → Connect → Transaction pooler (porta 6543)." },
+    {
+      key: "DATABASE_URL", label: "Base de dados configurada (DATABASE_URL ou POSTGRES_URL)", ok: Boolean(resolveDatabaseUrl()),
+      hint: "Ligue o projeto Supabase a este projeto Vercel (Vercel → Integrations → Supabase), ou defina DATABASE_URL com o URL do Transaction pooler (porta 6543).",
+    },
     ...(await databaseChecks()),
     {
       key: "clerk", label: "Clerk configurado (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY)",

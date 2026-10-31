@@ -39,3 +39,19 @@ describe("parseEuroInput", () => {
     expect(parseEuroInput("abc")).toBeNull();
   });
 });
+
+import { needsTls, resolveDatabaseUrl } from "@/lib/database-url";
+describe("resolveDatabaseUrl", () => {
+  it("prefers DATABASE_URL and falls back to the Supabase integration's POSTGRES_URL", () => {
+    expect(resolveDatabaseUrl({ DATABASE_URL: "postgres://a@h/db", POSTGRES_URL: "postgres://b@h/db" })).toBe("postgres://a@h/db");
+    expect(
+      resolveDatabaseUrl({ POSTGRES_URL: "postgres://postgres.ref:pw@aws-0-eu-west-2.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x" }),
+    ).toBe("postgres://postgres.ref:pw@aws-0-eu-west-2.pooler.supabase.com:6543/postgres?sslmode=require");
+    expect(resolveDatabaseUrl({})).toBeNull();
+  });
+  it("forces TLS for Supabase hosts without an explicit sslmode", () => {
+    expect(needsTls("postgres://u:p@aws-0-eu-west-2.pooler.supabase.com:6543/postgres")).toBe(true);
+    expect(needsTls("postgres://u:p@aws-0-eu-west-2.pooler.supabase.com:6543/postgres?sslmode=require")).toBe(false);
+    expect(needsTls("postgres://postgres:postgres@localhost:5432/comunio")).toBe(false);
+  });
+});
