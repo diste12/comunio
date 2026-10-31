@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { UserMenu } from "./_components/user-menu";
 
+const NAV = [
+  ["/admin", "Carteira"],
+  ["/admin/tickets", "Ocorrências"],
+  ["/admin/assemblies", "Assembleias"],
+  ["/admin/devedores", "Devedores"],
+  ["/admin/whatsapp", "WhatsApp"],
+  ["/admin/fornecedores", "Fornecedores"],
+] as const;
+
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -10,9 +19,11 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
             <Link href="/admin" className="font-semibold text-brand-900">
               Comunio
             </Link>
-            <Link href="/admin" className="text-stone-600 hover:text-stone-900">
-              Carteira
-            </Link>
+            {NAV.map(([href, label]) => (
+              <Link key={href} href={href} className="text-stone-600 hover:text-stone-900">
+                {label}
+              </Link>
+            ))}
           </nav>
           <UserMenu enabled={Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)} />
         </div>

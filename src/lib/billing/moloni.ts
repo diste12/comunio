@@ -63,6 +63,12 @@ export class MoloniProvider implements BillingProvider {
     return { documentId: String(inserted.document_id), documentNumber: null, pdfUrl: pdf.url ?? null };
   }
 
+  async documentPdfUrl(companyId: number | null, documentId: string): Promise<string | null> {
+    if (!companyId) return null;
+    const res = await call<{ url?: string }>("documents/getPDFLink", { company_id: companyId, document_id: Number(documentId) });
+    return res.url ?? null;
+  }
+
   private async ensureCustomer(companyId: number, c: ReceiptRequest["customer"]): Promise<number> {
     const vat = c.nif ?? FINAL_CONSUMER_NIF;
     if (vat !== FINAL_CONSUMER_NIF) {
@@ -140,5 +146,9 @@ export class MockBillingProvider implements BillingProvider {
       documentNumber: `FR MOCK/${req.paidAt.getUTCFullYear()}/${req.ourReference}`,
       pdfUrl: null,
     };
+  }
+
+  async documentPdfUrl(): Promise<string | null> {
+    return null;
   }
 }

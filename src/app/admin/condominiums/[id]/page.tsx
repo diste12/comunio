@@ -15,7 +15,11 @@ import {
 import { Badge, Card, Skeleton, Stat, td, th } from "@/components/ui";
 import { ActionButton } from "../../_components/action-button";
 import { BudgetForm } from "../../_components/budget-form";
+import { sql } from "@/lib/db";
+import { fmtDateTime } from "@/lib/pdf/document";
+import { ticketRef } from "@/lib/triage/ticket-ref";
 import {
+  sendPortalLinkAction,
   issueReferencesAction,
   requestMbWayAction,
   retryReceiptAction,
@@ -47,7 +51,15 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
   const data = await getCondominium(id);
   if (!data) notFound();
   const { condo, summary, budgets } = data;
-  const [fractions, charges] = await Promise.all([listFractions(id), listCharges(id, filter)]);
+  const [fractions, charges, assemblies, tickets] = await Promise.all([
+    listFractions(id),
+    listCharges(id, filter),
+    sql<{ id: string; scheduled_at: Date; status: string; kind: string }[]>`
+      select id, scheduled_at, status, kind from assemblies where condominium_id = ${id} order by scheduled_at desc limit 5`,
+    sql<{ id: string; category: string; status: string; created_at: Date }[]>`
+      select id, category, status, created_at from maintenance_tickets
+      where condominium_id = ${id} and status in ('OPEN', 'IN_PROGRESS', 'AWAITING_QUOTES') order by created_at desc limit 5`,
+  ]);
   const mock = env().PAYMENTS_PROVIDER === "mock";
   const rate = collectionRate(summary.paidCents, summary.overdueCents);
   const nextYear = Math.max(new Date().getFullYear() + 1, ...budgets.map((b) => b.fiscal_year + 1));
@@ -71,6 +83,49 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
         <Stat label="Cobrado" value={formatEur(summary.paidCents)} tone="good" hint={rate === null ? undefined : `taxa ${(rate * 100).toFixed(1)}%`} />
         <Stat label="Em dívida" value={formatEur(summary.overdueCents)} tone={summary.overdueCents ? "bad" : "default"} hint={`${summary.fractionsInDebt} frações`} />
         <Stat label="A vencer" value={formatEur(summary.upcomingCents)} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card
+          title="Assembleias"
+          actions={
+            <Link href={`/admin/assemblies/new?condo=${id}`} className="text-sm font-medium text-brand-700 hover:underline">
+              + Nova assembleia
+            </Link>
+          }
+        >
+          {assemblies.length === 0 ? (
+            <p className="text-sm text-stone-500">Sem assembleias.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {assemblies.map((a) => (
+                <li key={a.id}>
+                  <Link href={`/admin/assemblies/${a.id}`} className="text-brand-700 hover:underline">
+                    {fmtDateTime(a.scheduled_at)}
+                  </Link>{" "}
+                  <span className="text-xs text-stone-500">· {a.kind.toLowerCase()} · {a.status.toLowerCase()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="Ocorrências em aberto">
+          {tickets.length === 0 ? (
+            <p className="text-sm text-stone-500">Nenhuma.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {tickets.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/admin/tickets/${t.id}`} className="text-brand-700 hover:underline">
+                    {t.category}
+                  </Link>{" "}
+                  <span className="font-mono text-xs text-stone-400">{ticketRef(t.id)}</span>{" "}
+                  <span className="text-xs text-stone-500">· {t.status.toLowerCase()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
       <Card title="Orçamento e quotas (motor de permilagem)">
@@ -216,6 +271,9 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
                   <td className={td}>
                     {f.ownerName ?? "—"}
                     {f.ownerPhone && <div className="text-xs text-stone-500">+{f.ownerPhone}</div>}
+                    {f.ownerId && (
+                      <ActionButton action={sendPortalLinkAction.bind(null, f.ownerId)} label="Enviar link do portal" variant="link" />
+                    )}
                   </td>
                   <td className={`${td} text-stone-600`}>{f.tenantName ?? "—"}</td>
                   <td className={`${td} text-right tabular-nums`}>{formatEur(f.paidCents)}</td>

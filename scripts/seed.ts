@@ -31,12 +31,16 @@ const TICKETS: [string, string][] = [
   ["Canalização", "Infiltração no teto da garagem"],
   ["Iluminação", "Lâmpadas fundidas na escada"],
   ["Limpeza", "Contentor do lixo partido"],
-  ["Portão", "Portão da garagem não abre com o comando"],
+  ["Portão/Portas", "Portão da garagem não abre com o comando"],
 ];
 
-function nif(prefix: string) {
+const usedNifs = new Set<string>();
+function nif(prefix: string): string {
   const first8 = prefix + String(int(0, 10 ** (8 - prefix.length) - 1)).padStart(8 - prefix.length, "0");
-  return first8 + nifCheckDigit(first8);
+  const value = first8 + nifCheckDigit(first8);
+  if (usedNifs.has(value)) return nif(prefix);
+  usedNifs.add(value);
+  return value;
 }
 const name = () => `${pick(FIRST)} ${pick(LAST)} ${pick(LAST)}`;
 const phone = () => `3519${pick(["1", "2", "3", "6"])}${String(int(0, 9_999_999)).padStart(7, "0")}`;
@@ -45,7 +49,27 @@ const FISCAL_YEAR = 2026;
 const today = new Date().toISOString().slice(0, 10);
 
 async function main() {
-  await sql`truncate condominiums, payment_events cascade`;
+  await sql`truncate condominiums, payment_events, vendors, whatsapp_messages cascade`;
+
+  const VENDORS: [string, string[]][] = [
+    ["Elevadores Atlântico, Lda.", ["Elevador"]],
+    ["Lift Norte Manutenção", ["Elevador"]],
+    ["Ascensores Tejo", ["Elevador"]],
+    ["Canalizações Ribeiro & Filhos", ["Canalização"]],
+    ["HidroFix Reparações", ["Canalização", "Estrutura/Fachada"]],
+    ["AquaServiços Porto", ["Canalização"]],
+    ["Eletro Lumen, Lda.", ["Eletricidade", "Iluminação"]],
+    ["Voltagem Certa", ["Eletricidade", "Iluminação"]],
+    ["Portões & Automatismos Silva", ["Portão/Portas", "Segurança"]],
+    ["Limpezas Brilho Total", ["Limpeza"]],
+    ["Fachadas Renova", ["Estrutura/Fachada"]],
+    ["Multiserviços Condomínio+", []],
+  ];
+  await sql`insert into vendors ${sql(
+    VENDORS.map(([vname, categories], k) => ({
+      name: vname, nif: nif("5"), email: `orcamentos${k + 1}@fornecedor.example.pt`, phone_number: phone(), categories,
+    })),
+  )}`;
 
   for (let i = 0; i < 200; i++) {
     const [city, cp] = pick(CITIES);

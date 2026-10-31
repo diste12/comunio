@@ -11,6 +11,9 @@ import { BudgetExistsError, generateQuotas } from "@/lib/services/quotas";
 import { issueMultibancoReferences, requestMbWayForCharge } from "@/lib/services/references";
 import { applyPayment, issueReceiptForCharge } from "@/lib/services/reconcile";
 import { orderIdFor } from "@/lib/payments";
+import { sendWhatsAppTemplate } from "@/lib/messaging/whatsapp";
+import { createMagicLink, residentById } from "@/lib/services/residents";
+import { handleInboundWhatsApp } from "@/lib/triage/agent";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
@@ -101,4 +104,35 @@ export async function retryReceiptAction(chargeId: string): Promise<ActionState>
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp
+// ---------------------------------------------------------------------------
+
+/** Dev/demo: inject an inbound WhatsApp message as if a resident sent it. */
+export async function simulateWhatsAppAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  if (env().WHATSAPP_PROVIDER !== "mock") return { ok: false, message: "Só disponível em modo mock." };
+  const phone = String(form.get("phone") ?? "").replace(/\D/g, "");
+  const text = String(form.get("text") ?? "").trim();
+  if (!phone || !text) return { ok: false, message: "Indique telefone e mensagem." };
+  const reply = await handleInboundWhatsApp({ from: phone, id: `sim-${Date.now()}`, text });
+  revalidatePath("/admin/whatsapp");
+  return { ok: true, message: reply ? `Intenção: ${reply.intent}` : "Duplicada" };
+}
+
+export async function sendPortalLinkAction(residentId: string): Promise<ActionState> {
+  await requireAdmin();
+  const r = await residentById(z.uuid().parse(residentId));
+  if (!r) return { ok: false, message: "Residente não encontrado." };
+  const link = await createMagicLink(r.id);
+  await sendWhatsAppTemplate({
+    to: r.phone,
+    template: "portal_link",
+    params: [r.fullName.split(" ")[0], link],
+    fallbackBody: `Olá ${r.fullName.split(" ")[0]}! Aceda ao portal do ${r.condominiumName}: ${link}`,
+    residentId: r.id,
+  });
+  return { ok: true, message: "Link enviado por WhatsApp." };
 }

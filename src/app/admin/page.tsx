@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
 import { formatEur } from "@/lib/money";
+import { approvalsQueue } from "@/lib/services/approvals";
 import { collectionRate, listCondominiums, portfolioTotals } from "@/lib/services/ledger";
+import { fmtDateTime } from "@/lib/pdf/document";
 import { Badge, Card, Skeleton, Stat, td, th } from "@/components/ui";
 
 export const metadata = { title: "Carteira" };
@@ -25,7 +27,7 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const onlyDebt = sp.divida === "1";
-  const [totals, condos] = await Promise.all([portfolioTotals(), listCondominiums({ q, onlyDebt })]);
+  const [totals, condos, queue] = await Promise.all([portfolioTotals(), listCondominiums({ q, onlyDebt }), approvalsQueue()]);
   const rate = collectionRate(totals.paidCents, totals.overdueCents);
 
   return (
@@ -42,6 +44,8 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
         />
         <Stat label="Ocorrências abertas" value={String(totals.openTickets)} />
       </div>
+
+      <Approvals queue={queue} />
 
       <Card
         title={`${condos.length} condomínios`}
@@ -109,5 +113,40 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
         </div>
       </Card>
     </>
+  );
+}
+
+function Approvals({ queue }: { queue: Awaited<ReturnType<typeof approvalsQueue>> }) {
+  const items: { key: string; href: string; label: string; detail: string; tone: "red" | "amber" | "gray" }[] = [
+    ...queue.urgent.map((t) => ({ key: `u${t.id}`, href: `/admin/tickets/${t.id}`, label: `Urgente: ${t.category}`, detail: `${t.condo} · ${fmtDateTime(t.created_at)}`, tone: "red" as const })),
+    ...queue.invoices.map((i) => ({ key: `i${i.id}`, href: `/admin/tickets/${i.ticket_id}`, label: `Aprovar pagamento ${formatEur(i.amountCents)}`, detail: `${i.vendor} · fatura ${i.invoice_number} · ${i.condo}`, tone: "amber" as const })),
+    ...queue.quotesReady.map((r) => ({ key: `q${r.ticket_id}`, href: `/admin/tickets/${r.ticket_id}`, label: `Adjudicar orçamento: ${r.category}`, detail: `3 propostas recebidas · ${r.condo}`, tone: "amber" as const })),
+    ...queue.minutes.map((m) => ({ key: `m${m.assembly_id}`, href: `/admin/assemblies/${m.assembly_id}`, label: "Assinar ata", detail: `${m.condo} · ${fmtDateTime(m.scheduled_at)}`, tone: "amber" as const })),
+    ...(queue.debtorsWithoutLetter > 0
+      ? [{ key: "debt", href: "/admin/devedores", label: `${queue.debtorsWithoutLetter} cartas de pré-contencioso por enviar`, detail: `≥ 3 prestações em atraso`, tone: "gray" as const }]
+      : []),
+    ...(queue.receiptErrors > 0
+      ? [{ key: "rcpt", href: "/admin", label: `${queue.receiptErrors} recibos Moloni com erro`, detail: "nova tentativa automática a cada hora", tone: "red" as const }]
+      : []),
+  ];
+  return (
+    <Card title={`Para decidir (${items.length})`}>
+      {items.length === 0 ? (
+        <p className="text-sm text-stone-500">Nada pendente. 🎉</p>
+      ) : (
+        <ul className="-m-4 divide-y divide-stone-100">
+          {items.slice(0, 12).map((i) => (
+            <li key={i.key}>
+              <Link href={i.href} className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-stone-50">
+                <span className="text-sm font-medium">{i.label}</span>
+                <span className="flex items-center gap-2 text-xs text-stone-500">
+                  {i.detail} <Badge tone={i.tone}>→</Badge>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

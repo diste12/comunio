@@ -1,47 +1,42 @@
 # Comunio
 
-AI-orchestrated condominium administration for the Portuguese market — built so a
+AI-orchestrated condominium administration for the Portuguese market, built so a
 single administrator can run ~200 buildings (~4,000 fractions) with zero admin staff.
 Working name for the *GestãoAI Condomínio* PRD.
 
-**Stack:** Next.js 16 (App Router, Cache Components) on Vercel · Supabase Postgres ·
-Clerk (admin auth) · Resend (email, Day 2) · Ifthenpay (Multibanco / MB WAY) · Moloni (AT-certified receipts).
+**Stack:** Next.js 16 (App Router, Cache Components) on Vercel · Supabase Postgres · Clerk (admin auth) ·
+Resend (email) · Ifthenpay (Multibanco / MB WAY) · Moloni (AT-certified receipts) · Meta WhatsApp Cloud API ·
+OpenAI (triage agent, minutes, Whisper).
 
-## Status — Day 1 (Foundation, Ledger & Payments) ✅
+Every external integration has an offline **mock** mode, so the whole product runs locally with only Postgres.
 
-| PRD step | Where |
-|---|---|
-| Schema (PRD §5 + budgets, payment events, provider config) | `supabase/migrations/` |
-| Permilagem Engine — budget → 12 monthly quotas per fraction, + ≥10% reserve fund (DL 268/94 art. 4.º) | `src/lib/quotas/engine.ts` |
-| Ifthenpay — Multibanco references + MB WAY push (live client + offline mock) | `src/lib/payments/` |
-| Moloni multi-company wrapper + payment webhook → receipt | `src/lib/billing/`, `src/app/api/webhooks/ifthenpay` |
-| Admin dashboard for the 200-building ledger | `src/app/admin` |
+## What's built (PRD 3-day sprint)
 
-### How money flows
-1. **Budget → quotas.** Admin enters the annual ordinary budget. The engine splits it by
-   permilagem with largest-remainder rounding (integer cents, totals reconcile exactly),
-   adds the reserve fund per fraction (rounded *up*, so no owner is below the legal 10%),
-   and splits each fraction's year into installments.
-2. **Quotas → references.** "Emitir referências Multibanco" issues references for pending
-   quotas due in the next 45 days. MB WAY pushes go to the owner's phone per quota.
-3. **Payment → receipt (zero-touch).** Ifthenpay calls `/api/webhooks/ifthenpay`. The
-   handler verifies the anti-phishing key, applies the payment idempotently
-   (`payment_events`: `APPLIED | DUPLICATE | ALREADY_PAID | AMOUNT_MISMATCH | NOT_FOUND`),
-   and issues the Moloni receipt after responding. Failed receipts are retried hourly by
-   Vercel Cron (`/api/cron/receipts`); they never un-pay a quota.
+| Area | What it does | Code |
+|---|---|---|
+| **Ledger** | Schema for condominiums, fractions, residents, budgets, quotas, payments | `supabase/migrations/` |
+| **Permilagem Engine** | Budget → quotas per fraction by ‰, exact to the cent, + ≥10% reserve fund (DL 268/94) | `src/lib/quotas/engine.ts` |
+| **Payments** | Multibanco references + MB WAY push (Ifthenpay); daily cron issues references portfolio-wide | `src/lib/payments/`, `/api/cron/references` |
+| **Receipts** | Idempotent payment webhook → Moloni receipt (multi-company); hourly retry cron | `/api/webhooks/ifthenpay`, `src/lib/billing/` |
+| **WhatsApp triage** | Inbound messages → LLM agent with tools scoped to the sender (quotas, MB WAY, tickets, portal link, next assembly); rule-based fallback; admin inbox + simulator | `src/lib/triage/`, `/api/webhooks/whatsapp`, `/admin/whatsapp` |
+| **Resident PWA** | Passwordless magic link via WhatsApp; owners see quotas, MB refs, MB WAY, receipts, minutes; tenants see tickets only | `/r/[token]`, `/portal` |
+| **Convocations (Lei 8/2022)** | PDF notice; email if consent recorded, otherwise CTT registered mail; refuses < 10 days' notice | `src/lib/services/assemblies.ts` |
+| **Live assemblies** | Attendance (present / online / represented), live quorum, weighted voting with legal majority rules (1st/2nd call, 2/3, unanimity) | `src/lib/assembly/rules.ts`, `/admin/assemblies/[id]` |
+| **Minutes (ata)** | Whisper transcription + LLM discussion summaries; attendance, votes and per-fraction debt declaration (*título executivo*) generated from data; 1-click approval; PDF | `src/lib/services/minutes.ts` |
+| **3-quote engine** | "Request quotes" → 3 vendor capability links by email → comparison matrix → award → vendor invoice → 1-click payment approval | `src/lib/services/rfps.ts`, `/rfp/[token]` |
+| **Pre-litigation** | Debtors with ≥3 overdue quotas; letter PDF; 1-click CTT registered mail with 30-day cooldown | `/admin/devedores` |
+| **Approvals inbox** | Urgent tickets, invoices to pay, quotes to award, minutes to sign, letters pending | `/admin` |
 
-Ifthenpay callback URL to configure in its backoffice:
-```
-https://<app>/api/webhooks/ifthenpay?key=[ANTI_PHISHING_KEY]&orderId=[ORDER_ID]&amount=[AMOUNT]&requestId=[REQUEST_ID]&entity=[ENTITY]&reference=[REFERENCE]&payment_datetime=[PAYMENT_DATETIME]&payment_method=[PAYMENT_METHOD]
-```
+### Human-in-the-loop vs. zero-touch (PRD §6)
+- **Zero-touch:** WhatsApp level-1 replies, MB references/MB WAY, receipts on payment, ticket logging, urgent-ticket email alerts.
+- **1-click:** vendor payment approval, quote award, signing minutes, dispatching CTT letters.
 
-### Architecture notes
-- **Data access is server-only** (`postgres` client over the Supabase pooler). RLS is enabled
-  on every table with no policies, so Supabase's public API roles see nothing.
-- **Auth:** Clerk attaches the session in `src/proxy.ts`; `requireAdmin()` enforces access in
-  every admin page and server action (`ADMIN_EMAILS` allowlist). Disable public sign-ups in Clerk.
-- **Multi-tenant by NIF:** each condominium carries its own Ifthenpay keys (own IBAN) and
-  Moloni company/document set/product ids.
+### Legal rules encoded
+- Votes weighted by permilagem (CC art. 1430.º). 1st call: > 500‰ in favour (art. 1432.º n.º 3). 2nd call: majority of
+  capital present with ≥ 1/4 present (n.º 4). Innovations: majority of owners holding 2/3 (art. 1425.º). Unanimity of those
+  present holding ≥ 2/3 is recorded as conditional on the absent owners (n.º 5–8). Tests: `tests/assembly.test.ts`.
+- Minutes list each fraction's annual contribution and overdue debt so they work as an executory title
+  (art. 6.º DL 268/94, as amended by Lei 8/2022). This section is built from data, never by the LLM.
 
 ## Local development
 
@@ -49,31 +44,36 @@ Needs Node 20+, pnpm, and Postgres 15+ (or `supabase start`).
 
 ```bash
 pnpm install
-cp .env.example .env.local      # set DATABASE_URL; mock providers + dev auth bypass work offline
+cp .env.example .env.local      # set DATABASE_URL; everything else can stay on mock
 pnpm db:migrate                 # plain Postgres; for Supabase use `supabase db push`
-pnpm db:seed                    # 200 condominiums, ~4,200 fractions, 2026 ledger (wipes data)
+pnpm db:seed                    # 200 condominiums, ~4,200 fractions, 12 vendors (wipes data)
 pnpm dev                        # http://localhost:3000/admin
 ```
 
-Try a payment in mock mode with **Simular pagamento** on a quota row, or:
-```bash
-curl "http://localhost:3000/api/webhooks/ifthenpay?orderId=Q<order_seq>&amount=<amount>&requestId=test1"
-```
+Demo path: **/admin/whatsapp** (simulate "quanto devo?", "o elevador está avariado", "portal") → open the portal link →
+**condominium page → Nova assembleia** → send convocations → start, mark attendance, vote → close → generate & sign the ata →
+**Ocorrências → Pedir 3 orçamentos → Simular propostas → Adjudicar** → **Devedores**.
 
 Checks: `pnpm test` · `pnpm typecheck` · `pnpm lint` · `pnpm build`
 
 ## Deploy (Vercel + Supabase)
 1. Create a Supabase project (EU region); `supabase link`, then `supabase db push`.
 2. Import the repo in Vercel; set env vars from `.env.example` (`DATABASE_URL` = transaction pooler URL).
-3. Add the Clerk keys and `ADMIN_EMAILS`; set `CRON_SECRET` (Vercel sends it to the cron route).
+3. Clerk keys + `ADMIN_EMAILS` (disable public sign-ups), `SESSION_SECRET`, `CRON_SECRET`.
+4. Webhooks: Ifthenpay callback URL (below) and Meta webhook `https://<app>/api/webhooks/whatsapp`.
 
-## Before go-live (needs sandbox credentials)
-- **Ifthenpay:** endpoint/field names follow the public API but were written without network
-  access to their docs — validate with sandbox keys.
-- **Moloni:** confirm with the accountant which document type is the *Recibo de Quitação*
-  (currently `invoiceReceipts/insert`) and the VAT exemption reason for quotas.
-- Ifthenpay payment timestamps are stored as if UTC; in summer time (WEST) they are 1h off.
+Ifthenpay callback URL:
+```
+https://<app>/api/webhooks/ifthenpay?key=[ANTI_PHISHING_KEY]&orderId=[ORDER_ID]&amount=[AMOUNT]&requestId=[REQUEST_ID]&entity=[ENTITY]&reference=[REFERENCE]&payment_datetime=[PAYMENT_DATETIME]&payment_method=[PAYMENT_METHOD]
+```
 
-## Next — Day 2
-WhatsApp Cloud API + LLM triage agent, resident PWA with WhatsApp magic links,
-Lei 8/2022 convocation engine (PDF + Resend email when consent recorded, CTT mock otherwise).
+## Before go-live
+- **Ifthenpay / Moloni / Meta:** the live clients follow the public APIs but were written without network access to
+  their docs; validate each with sandbox credentials. Moloni: confirm the *Recibo de Quitação* document type and the
+  VAT exemption reason with the accountant.
+- **WhatsApp templates:** business-initiated messages (portal link from the admin) need an approved `portal_link` template.
+- **OpenAI:** the LLM triage and minutes paths have not been exercised against the live API; rule/template fallbacks are tested.
+- **CTT:** only a mock exists (tracking numbers in S10 format); no public CTT API was integrated.
+- **Audio uploads:** Vercel caps request bodies at 4.5 MB; long recordings must be split (or uploaded to Supabase Storage first).
+- Ifthenpay timestamps are stored as UTC (1h off in summer); the live assembly view refreshes by polling (3 s), not Realtime.
+- Legal texts (convocation, minutes, letters) should be reviewed by a Portuguese lawyer before use.

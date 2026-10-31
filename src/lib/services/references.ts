@@ -57,6 +57,28 @@ export async function issueMultibancoReferences(condominiumId: string, horizonDa
   return { candidates: charges.length, issued, errors };
 }
 
+/** Ensure a single pending charge has a Multibanco reference (issues one if missing). */
+export async function ensureReferenceForCharge(chargeId: string) {
+  const [c] = await sql<(PendingCharge & { mb_entity: string | null; mb_reference: string | null; payment_status: string })[]>`
+    select q.id, q.order_seq, q.amount_total, q.description, q.mb_entity, q.mb_reference, q.payment_status, c.ifthenpay_mb_key
+    from quota_charges q join condominiums c on c.id = q.condominium_id
+    where q.id = ${chargeId}`;
+  if (!c) throw new Error("Charge not found");
+  if (c.mb_reference || c.payment_status !== "PENDING") return { entity: c.mb_entity, reference: c.mb_reference };
+  const ref = await paymentsProvider().createMultibancoReference({
+    orderId: orderIdFor(c.order_seq),
+    amountCents: toCents(c.amount_total),
+    description: c.description,
+    expiryDays: env().IFTHENPAY_MB_EXPIRY_DAYS,
+    mbKey: c.ifthenpay_mb_key,
+  });
+  await sql`
+    update quota_charges
+    set mb_entity = ${ref.entity}, mb_reference = ${ref.reference}, mb_request_id = ${ref.requestId}
+    where id = ${c.id} and mb_reference is null`;
+  return { entity: ref.entity, reference: ref.reference };
+}
+
 /** Send an MB WAY push to the fraction owner's phone for a single charge. */
 export async function requestMbWayForCharge(chargeId: string) {
   const [c] = await sql<

@@ -25,4 +25,6 @@ export type IssuedReceipt = {
 export interface BillingProvider {
   readonly name: "mock" | "moloni";
   issueReceipt(req: ReceiptRequest): Promise<IssuedReceipt>;
+  /** Download URL for an issued document, or null if the provider has none. */
+  documentPdfUrl(companyId: number | null, documentId: string): Promise<string | null>;
 }

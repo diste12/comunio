@@ -64,6 +64,7 @@ export type FractionRow = {
   id: string;
   designation: string;
   permilagem: string;
+  ownerId: string | null;
   ownerName: string | null;
   ownerPhone: string | null;
   tenantName: string | null;
@@ -75,11 +76,12 @@ export type FractionRow = {
 export async function listFractions(condominiumId: string): Promise<FractionRow[]> {
   const rows = await sql<
     {
-      id: string; designation: string; permilagem: string; owner_name: string | null; owner_phone: string | null;
+      id: string; designation: string; permilagem: string; owner_id: string | null; owner_name: string | null; owner_phone: string | null;
       tenant_name: string | null; paid_total: string; overdue_total: string; overdue_count: string;
     }[]
   >`
     select f.id, f.designation, f.permilagem,
+      (select id from residents r where r.fraction_id = f.id and r.role = 'Proprietário' order by created_at limit 1) owner_id,
       (select full_name from residents r where r.fraction_id = f.id and r.role = 'Proprietário' order by created_at limit 1) owner_name,
       (select phone_number from residents r where r.fraction_id = f.id and r.role = 'Proprietário' order by created_at limit 1) owner_phone,
       (select full_name from residents r where r.fraction_id = f.id and r.role = 'Inquilino' order by created_at limit 1) tenant_name,
@@ -93,7 +95,7 @@ export async function listFractions(condominiumId: string): Promise<FractionRow[
     order by f.designation`;
   return rows.map((r) => ({
     id: r.id, designation: r.designation, permilagem: r.permilagem,
-    ownerName: r.owner_name, ownerPhone: r.owner_phone, tenantName: r.tenant_name,
+    ownerId: r.owner_id, ownerName: r.owner_name, ownerPhone: r.owner_phone, tenantName: r.tenant_name,
     paidCents: toCents(r.paid_total), overdueCents: toCents(r.overdue_total), overdueCount: Number(r.overdue_count),
   }));
 }
