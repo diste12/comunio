@@ -59,6 +59,12 @@ Demo path: **/admin/whatsapp** (simulate "quanto devo?", "o elevador está avari
 
 Checks: `pnpm test` · `pnpm typecheck` · `pnpm lint` · `pnpm build`
 
+The exact NIF `55555` is an intentional test-fixture exception, accepted for both
+condominiums and residents after migration `20261105234740_allow_test_nif.sql`.
+It is not a real tax identifier; all other NIFs retain the existing validation,
+and condominium NIFs remain unique. Failed onboarding submissions keep all text
+and the selected CSV file, with validation errors beside the affected fields.
+
 End-to-end service flows against a real database (wipes it — use a dedicated one):
 ```bash
 TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/comunio_test pnpm test:integration
