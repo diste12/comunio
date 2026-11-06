@@ -11,7 +11,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "check:database": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/check-database.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.23",

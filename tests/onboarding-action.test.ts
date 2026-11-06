@@ -32,9 +32,9 @@ describe("createCondominiumAction", () => {
     expect(state?.fieldErrors?.csv).toBeUndefined();
     expect(createCondominium).not.toHaveBeenCalled();
   });
-  it("allows the explicit test NIF and retains the successful redirect", async () => {
+  it("allows the explicit test NIF and returns the created condominium destination", async () => {
     vi.mocked(createCondominium).mockResolvedValue({ id: "created-id", fractions: 3, residents: 4 });
-    await expect(createCondominiumAction(null, form({ nif: "55555" }))).rejects.toThrow("redirect:/admin/condominiums/created-id");
+    await expect(createCondominiumAction(null, form({ nif: "55555" }))).resolves.toMatchObject({ ok: true, redirectTo: "/admin/condominiums/created-id" });
     expect(createCondominium).toHaveBeenCalledWith(expect.objectContaining({ nif: "55555" }), expect.any(Array));
   });
   it("reports a concurrent duplicate NIF beside the NIF field", async () => {

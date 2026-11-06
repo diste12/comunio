@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { UserMenu } from "./_components/user-menu";
 
+export const maxDuration = 600;
+
 const NAV = [
   ["/admin", "Carteira"],
   ["/admin/tickets", "Ocorrências"],

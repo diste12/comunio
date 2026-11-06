@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { parseOnboardingCsv } from "@/lib/onboarding/csv";
@@ -16,6 +15,7 @@ export type OnboardingState = {
   fieldErrors?: Partial<Record<OnboardingField, string>>;
   errors?: string[];
   warnings?: string[];
+  redirectTo?: string;
 } | null;
 
 const opt = (v: FormDataEntryValue | null) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -64,7 +64,7 @@ export async function createCondominiumAction(_prev: OnboardingState, form: Form
     return { ok: false, message: (e as Error).message };
   }
   revalidatePath("/admin");
-  redirect(`/admin/condominiums/${id}`);
+  return { ok: true, message: "Condomínio criado.", redirectTo: `/admin/condominiums/${id}` };
 }
 
 const intOrNull = z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int().positive().nullable());
