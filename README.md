@@ -59,6 +59,22 @@ Demo path: **/admin/whatsapp** (simulate "quanto devo?", "o elevador está avari
 
 Checks: `pnpm test` · `pnpm typecheck` · `pnpm lint` · `pnpm build`
 
+The exact NIF `55555` is an intentional test-fixture exception, accepted for both
+condominiums and residents after migration `20261105234740_allow_test_nif.sql`.
+It is not a real tax identifier; all other NIFs retain the existing validation,
+and condominium NIFs remain unique. Failed onboarding submissions keep all text
+and the selected CSV file, with validation errors beside the affected fields.
+Network/time-out failures stay inside the form. Drafts are saved per admin in
+the current tab's session storage for up to 24 hours and removed after confirmed
+creation; after a reload, uploaded CSV contents are restored into the editor.
+Admin routes, including onboarding actions, allow up to 600 seconds on Vercel
+(the existing transcription route keeps its separate 300-second limit).
+
+Database clients disable prepared statements and pipelining for the Supabase
+transaction pooler. `pnpm check:database` runs the dashboard's concurrent read
+queries against `DATABASE_URL` (or `.env.local`) and fails if they do not finish
+within 10 seconds. It does not migrate, seed, or write data.
+
 End-to-end service flows against a real database (wipes it — use a dedicated one):
 ```bash
 TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/comunio_test pnpm test:integration

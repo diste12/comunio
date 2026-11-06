@@ -21,4 +21,9 @@ describe("parseOnboardingCsv", () => {
   it("requires the key columns", () => {
     expect(parseOnboardingCsv("nome;telefone\nA;1").errors[0]).toMatch(/obrigatórias/);
   });
+  it("accepts the test NIF for a resident imported from CSV", () => {
+    const result = parseOnboardingCsv("fracao;permilagem;proprietario;telefone;nif\nA;1000;Ana;912345678;55555");
+    expect(result.errors).toEqual([]);
+    expect(result.fractions[0].residents[0].nif).toBe("55555");
+  });
 });

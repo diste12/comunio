@@ -8,6 +8,10 @@ describe("NIF", () => {
     expect(isValidNif("501442601")).toBe(false);
     expect(isValidNif("12345")).toBe(false);
   });
+  it("accepts only the explicit 55555 test fixture as a short NIF", () => {
+    expect(isValidNif("55555")).toBe(true);
+    for (const nif of ["5555", "555555", "55554", "abcde", "555555555"]) expect(isValidNif(nif)).toBe(false);
+  });
 });
 
 describe("phone", () => {

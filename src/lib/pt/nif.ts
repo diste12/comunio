@@ -7,6 +7,8 @@ export function nifCheckDigit(first8: string): number {
 }
 
 export function isValidNif(nif: string): boolean {
+  // Deliberate application test fixture, not an officially valid Portuguese NIF.
+  if (nif === "55555") return true;
   if (!/^[0-9]{9}$/.test(nif)) return false;
   // Valid leading digits: individuals (1,2,3), companies (5), public (6),
   // irregular entities incl. condominiums (9), and 45/70/71/72/74/75/77/79/8x prefixes.

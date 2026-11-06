@@ -11,9 +11,15 @@ export type CondoInput = {
   iban: string | null;
 };
 
+export class DuplicateCondominiumNifError extends Error {
+  constructor(nif: string) {
+    super(`Já existe um condomínio com o NIF ${nif}.`);
+  }
+}
+
 export async function createCondominium(condo: CondoInput, fractions: OnboardingFraction[]) {
   const [dup] = await sql`select 1 from condominiums where nif_condominio = ${condo.nif}`;
-  if (dup) throw new Error(`Já existe um condomínio com o NIF ${condo.nif}.`);
+  if (dup) throw new DuplicateCondominiumNifError(condo.nif);
   return sql.begin(async (tx) => {
     const [c] = await tx<{ id: string }[]>`
       insert into condominiums ${tx({

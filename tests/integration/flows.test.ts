@@ -9,7 +9,7 @@ import { sql } from "@/lib/db";
 import { isoDateFromNow } from "@/lib/dates";
 import { parseOnboardingCsv } from "@/lib/onboarding/csv";
 import { orderIdFor } from "@/lib/payments";
-import { createCondominium } from "@/lib/services/onboarding";
+import { createCondominium, DuplicateCondominiumNifError } from "@/lib/services/onboarding";
 import { generateQuotas } from "@/lib/services/quotas";
 import { issueMultibancoReferences } from "@/lib/services/references";
 import { applyPayment, issueReceiptForCharge } from "@/lib/services/reconcile";
@@ -39,6 +39,21 @@ afterAll(async () => {
 });
 
 describe("ledger", () => {
+  it("stores test NIF 55555 without relaxing other shape or uniqueness checks", async () => {
+    const parsed = parseOnboardingCsv("fracao;permilagem;proprietario;telefone;nif\nA;1000;Teste;919999999;55555");
+    expect(parsed.errors).toEqual([]);
+    const input = { name: "Test NIF fixture", nif: "55555", address: null, postalCode: null, city: null, iban: null };
+    const { id } = await createCondominium(input, parsed.fractions);
+    const [stored] = await sql`
+      select c.nif_condominio, r.nif from condominiums c
+      join fractions f on f.condominium_id = c.id
+      join residents r on r.fraction_id = f.id where c.id = ${id}`;
+    expect(stored).toEqual({ nif_condominio: "55555", nif: "55555" });
+    await expect(createCondominium(input, parsed.fractions)).rejects.toBeInstanceOf(DuplicateCondominiumNifError);
+    await expect(sql`insert into condominiums (name, nif_condominio) values ('Bad NIF', '55554')`).rejects.toMatchObject({ code: "23514" });
+    await expect(sql`update residents set nif = '55554' where nif = '55555'`).rejects.toMatchObject({ code: "23514" });
+  });
+
   it("onboards a condominium from CSV", async () => {
     const parsed = parseOnboardingCsv(CSV);
     expect(parsed.errors).toEqual([]);
