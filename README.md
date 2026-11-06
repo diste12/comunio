@@ -107,3 +107,29 @@ https://<app>/api/webhooks/ifthenpay?key=[ANTI_PHISHING_KEY]&orderId=[ORDER_ID]&
 - The live assembly view and portal refresh by polling (3–4 s), not Supabase Realtime.
 - **Salt Edge:** client written against v5 without network access to the docs; validate with sandbox credentials.
 - Legal texts (convocation, minutes, letters) should be reviewed by a Portuguese lawyer before use.
+
+## Table controls
+
+All 11 admin tables share sortable headers, per-column filters (contains, equals,
+not equal, before/after or greater/less, between, empty, and multi-value selection),
+a left selection checkbox, a column picker, and named saved views. Filters across
+columns use AND; selected values within a column use OR. Money filters use euros,
+rates use percentage points, and dates accept YYYY-MM-DD. Controls operate on the
+loaded records; existing page query limits and server filters still apply, and
+the toolbar shows the loaded/filtered counts.
+
+Views are private to each admin and table in this browser's local storage. Save
+multiple views, update or delete them, and star favorites. “Link para esta vista”
+puts the configuration in the URL for a browser bookmark (including active server
+query parameters). Views do not sync across devices; the bookmark URL carries the
+configuration. No row data or row selections are stored in saved views.
+
+All tables export selected visible rows/columns as a formula-safe CSV. Bulk edits
+currently support ticket status and condominium city. Existing eligible row
+actions are available when every selected visible row offers the same action:
+for example retry receipts, request MB WAY, send portal links, ignore bank entries,
+confirm bank suggestions, or send debt letters. Confirmation shows the action and
+count. Successful rows are deselected; failed rows remain selected with errors.
+Existing service validations still apply. Quote awards remain individual because
+only one supplier may win. Tables of computed values offer export, not direct
+edits of derived data. No migration or environment change is needed.

@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -99,13 +100,13 @@ async function Convocations({ view }: { view: AssemblyView }) {
       </p>
       {rows.length > 0 && (
         <div className="-mx-4 -mb-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id={`convocations-${a.id}`}>
             <thead className="border-y border-stone-100 bg-stone-50">
               <tr><th className={th}>Fração</th><th className={th}>Proprietário</th><th className={th}>Canal</th><th className={th}>Estado</th><th className={th}>Referência</th></tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {rows.map((r) => (
-                <tr key={r.designation}>
+                <tr data-row-id={r.designation} key={r.designation}>
                   <td className={`${td} font-medium`}>{r.designation}</td>
                   <td className={td}>{r.full_name ?? "—"}</td>
                   <td className={td}>{r.channel === "EMAIL" ? "Email" : "Carta registada"}</td>
@@ -117,7 +118,7 @@ async function Convocations({ view }: { view: AssemblyView }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       )}
     </Card>
@@ -205,7 +206,7 @@ function Live({ view }: { view: AssemblyView }) {
 
       <Card title={openItem ? `Presenças e votos — ponto ${openItem.position} em votação` : "Presenças"}>
         <div className="-m-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id={`attendance-${a.id}`}>
             <thead className="border-b border-stone-100 bg-stone-50">
               <tr>
                 <th className={th}>Fração</th>
@@ -217,11 +218,11 @@ function Live({ view }: { view: AssemblyView }) {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {fractions.map((f) => (
-                <tr key={f.fractionId} className={f.attendance ? "" : "text-stone-400"}>
+                <tr data-row-id={f.fractionId} key={f.fractionId} className={f.attendance ? "" : "text-stone-400"}>
                   <td className={`${td} font-medium`}>{f.designation}</td>
-                  <td className={`${td} text-right tabular-nums`}>{f.permilagem.toFixed(2)}</td>
+                  <td data-value={f.permilagem} className={`${td} text-right tabular-nums`}>{f.permilagem.toFixed(2)}</td>
                   <td className={td}>{f.ownerName ?? "—"}</td>
-                  <td className={td}>
+                  <td data-value={f.attendance?.mode ?? "ABSENT"} className={td}>
                     <AttendanceControl
                       assemblyId={a.id}
                       fractionId={f.fractionId}
@@ -231,7 +232,7 @@ function Live({ view }: { view: AssemblyView }) {
                     />
                   </td>
                   {openItem && (
-                    <td className={td}>
+                    <td data-value={openItem.votes.get(f.fractionId) ?? ""} className={td}>
                       {f.attendance && (
                         <span className="inline-flex items-center gap-2">
                           <VoteButtons assemblyId={a.id} itemId={openItem.id} fractionId={f.fractionId} current={openItem.votes.get(f.fractionId) ?? null} disabled={!live} />
@@ -243,7 +244,7 @@ function Live({ view }: { view: AssemblyView }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </>

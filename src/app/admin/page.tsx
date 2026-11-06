@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
@@ -70,7 +71,7 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
         }
       >
         <div className="-m-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id="portfolio" editKind="condominiums">
             <thead className="border-b border-stone-100 bg-stone-50">
               <tr>
                 <th className={th}>Condomínio</th>
@@ -86,7 +87,7 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
               {condos.map((c) => {
                 const r = collectionRate(c.paidCents, c.overdueCents);
                 return (
-                  <tr key={c.id} className="hover:bg-stone-50">
+                  <tr data-row-id={c.id} key={c.id} className="hover:bg-stone-50">
                     <td className={td}>
                       <Link href={`/admin/condominiums/${c.id}`} className="font-medium text-brand-700 hover:underline">
                         {c.name}
@@ -95,8 +96,8 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
                     </td>
                     <td className={`${td} font-mono text-xs`}>{c.nif}</td>
                     <td className={`${td} text-right tabular-nums`}>{c.fractionCount}</td>
-                    <td className={`${td} text-right tabular-nums`}>{formatEur(c.paidCents)}</td>
-                    <td className={`${td} text-right tabular-nums`}>
+                    <td data-value={c.paidCents / 100} className={`${td} text-right tabular-nums`}>{formatEur(c.paidCents)}</td>
+                    <td data-value={c.overdueCents / 100} className={`${td} text-right tabular-nums`}>
                       {c.overdueCents > 0 ? (
                         <span className="text-red-700">
                           {formatEur(c.overdueCents)}
@@ -106,7 +107,7 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
                         "—"
                       )}
                     </td>
-                    <td className={`${td} text-right`}>
+                    <td data-value={r === null ? "" : r * 100} className={`${td} text-right`}>
                       {r === null ? "—" : <Badge tone={r >= 0.95 ? "green" : r >= 0.85 ? "amber" : "red"}>{pct(r)}</Badge>}
                     </td>
                     <td className={`${td} text-right tabular-nums`}>{c.openTickets || "—"}</td>
@@ -114,7 +115,7 @@ async function Portfolio({ searchParams }: { searchParams: PageProps<"/admin">["
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </>

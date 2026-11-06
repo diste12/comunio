@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
 import { listVendors } from "@/lib/services/rfps";
@@ -25,13 +26,13 @@ async function Vendors() {
       <Card title="Novo fornecedor"><VendorForm /></Card>
       <Card title={`${vendors.length} fornecedores`}>
         <div className="-m-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id="vendors">
             <thead className="border-b border-stone-100 bg-stone-50">
               <tr><th className={th}>Nome</th><th className={th}>NIF</th><th className={th}>Contacto</th><th className={th}>Especialidades</th><th className={`${th} text-right`}>Convites</th><th className={`${th} text-right`}>Adjudicações</th></tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {vendors.map((v) => (
-                <tr key={v.id}>
+                <tr data-row-id={v.id} key={v.id}>
                   <td className={`${td} font-medium`}>{v.name}</td>
                   <td className={`${td} font-mono text-xs`}>{v.nif ?? "—"}</td>
                   <td className={`${td} text-xs`}>{v.email}{v.phone_number && <div>+{v.phone_number}</div>}</td>
@@ -41,7 +42,7 @@ async function Vendors() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </>

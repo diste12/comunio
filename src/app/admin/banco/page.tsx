@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -40,20 +41,20 @@ async function Bank() {
       </Card>
       <Card title={`Por conciliar (${pending.length})`}>
         <div className="-m-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id="bank">
             <thead className="border-b border-stone-100 bg-stone-50">
               <tr><th className={th}>Data</th><th className={th}>Condomínio</th><th className={th}>Descrição</th><th className={`${th} text-right`}>Valor</th><th className={th}>Sugestão</th><th className={th}></th></tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {pending.map((t) => (
-                <tr key={t.id}>
-                  <td className={`${td} whitespace-nowrap text-xs`}>{fmtDate(t.booked_on)}</td>
+                <tr data-row-id={t.id} key={t.id}>
+                  <td data-value={new Date(t.booked_on).toISOString()} className={`${td} whitespace-nowrap text-xs`}>{fmtDate(t.booked_on)}</td>
                   <td className={`${td} text-xs`}>{t.condo}</td>
                   <td className={td}>
                     {t.description}
                     {t.counterparty_name && <div className="text-xs text-stone-500">{t.counterparty_name}</div>}
                   </td>
-                  <td className={`${td} text-right tabular-nums`}>{formatEur(t.amountCents)}</td>
+                  <td data-value={t.amountCents / 100} className={`${td} text-right tabular-nums`}>{formatEur(t.amountCents)}</td>
                   <td className={`${td} text-xs`}>
                     {t.suggestion ? (
                       <span className="flex flex-col items-start gap-1">
@@ -75,7 +76,7 @@ async function Bank() {
               ))}
               {pending.length === 0 && <tr><td colSpan={6} className={`${td} text-center text-stone-500`}>Nada por conciliar.</td></tr>}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
       <Card title="Conciliados recentemente">

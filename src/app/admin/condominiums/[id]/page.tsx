@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -169,7 +170,7 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
           ))}
         </nav>
         <div className="-mx-4 -mb-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id={`charges-${id}`}>
             <thead className="border-y border-stone-100 bg-stone-50">
               <tr>
                 <th className={th}>Fração</th>
@@ -191,11 +192,11 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
                 </tr>
               )}
               {charges.map((c) => (
-                <tr key={c.id}>
+                <tr data-row-id={c.id} key={c.id}>
                   <td className={`${td} font-medium`}>{c.designation}</td>
                   <td className={`${td} text-stone-600`}>{c.description}</td>
                   <td className={`${td} tabular-nums`}>{c.dueDate}</td>
-                  <td className={`${td} text-right tabular-nums`}>
+                  <td data-value={c.amountCents / 100} className={`${td} text-right tabular-nums`}>
                     {formatEur(c.amountCents)}
                     <div className="text-xs text-stone-400">FCR {formatEur(c.reserveCents)}</div>
                   </td>
@@ -250,13 +251,13 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
 
       <Card title="Frações">
         <div className="-m-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id={`fractions-${id}`}>
             <thead className="border-b border-stone-100 bg-stone-50">
               <tr>
                 <th className={th}>Fração</th>
@@ -269,9 +270,9 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
             </thead>
             <tbody className="divide-y divide-stone-100">
               {fractions.map((f) => (
-                <tr key={f.id}>
+                <tr data-row-id={f.id} key={f.id}>
                   <td className={`${td} font-medium`}>{f.designation}</td>
-                  <td className={`${td} text-right tabular-nums`}>{Number(f.permilagem).toFixed(2)}‰</td>
+                  <td data-value={Number(f.permilagem)} className={`${td} text-right tabular-nums`}>{Number(f.permilagem).toFixed(2)}‰</td>
                   <td className={td}>
                     {f.ownerName ?? "—"}
                     {f.ownerPhone && <div className="text-xs text-stone-500">+{f.ownerPhone}</div>}
@@ -280,8 +281,8 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
                     )}
                   </td>
                   <td className={`${td} text-stone-600`}>{f.tenantName ?? "—"}</td>
-                  <td className={`${td} text-right tabular-nums`}>{formatEur(f.paidCents)}</td>
-                  <td className={`${td} text-right tabular-nums`}>
+                  <td data-value={f.paidCents / 100} className={`${td} text-right tabular-nums`}>{formatEur(f.paidCents)}</td>
+                  <td data-value={f.overdueCents / 100} className={`${td} text-right tabular-nums`}>
                     {f.overdueCents > 0 ? (
                       <span className="text-red-700">
                         {formatEur(f.overdueCents)} <span className="text-xs text-stone-500">({f.overdueCount})</span>
@@ -293,7 +294,7 @@ async function Condominium({ params, searchParams }: PageProps<"/admin/condomini
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </div>

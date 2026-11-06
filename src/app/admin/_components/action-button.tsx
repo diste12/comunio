@@ -11,6 +11,8 @@ export function ActionButton({
 }: {
   action: () => Promise<ActionState>;
   label: string;
+  /** Disable multi-row execution for mutually exclusive operations. */
+  bulk?: boolean;
   pendingLabel?: string;
   variant?: "primary" | "secondary" | "link";
 }) {

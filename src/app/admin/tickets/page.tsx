@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
@@ -38,13 +39,13 @@ async function List({ searchParams }: { searchParams: PageProps<"/admin/tickets"
       actions={<Link href={all ? "?" : "?todas=1"} className="text-sm text-brand-700 underline">{all ? "Só em aberto" : "Ver todas"}</Link>}
     >
       <div className="-m-4 overflow-x-auto">
-        <table className="w-full">
+        <DataTable id="tickets" editKind="tickets">
           <thead className="border-b border-stone-100 bg-stone-50">
             <tr><th className={th}>Ocorrência</th><th className={th}>Condomínio</th><th className={th}>Origem</th><th className={th}>Estado</th><th className={th}>Data</th></tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-stone-50">
+              <tr data-row-id={r.id} key={r.id} className="hover:bg-stone-50">
                 <td className={td}>
                   <Link href={`/admin/tickets/${r.id}`} className="font-medium text-brand-700 hover:underline">{r.category}</Link>
                   <span className="ml-2 font-mono text-xs text-stone-400">{ticketRef(r.id)}</span>
@@ -55,11 +56,11 @@ async function List({ searchParams }: { searchParams: PageProps<"/admin/tickets"
                 <td className={td}>{r.condo}</td>
                 <td className={`${td} text-xs`}>{r.source}</td>
                 <td className={td}><Badge tone={STATUS[r.status][1]}>{STATUS[r.status][0]}</Badge></td>
-                <td className={`${td} text-xs text-stone-500`}>{fmtDateTime(r.created_at)}</td>
+                <td data-value={new Date(r.created_at).toISOString()} className={`${td} text-xs text-stone-500`}>{fmtDateTime(r.created_at)}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       </div>
     </Card>
   );
