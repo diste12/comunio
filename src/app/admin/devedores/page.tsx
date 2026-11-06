@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
@@ -38,7 +39,7 @@ async function Debtors() {
           Reveja a carta (PDF) e confirme o envio. Cada envio fica registado com o número de registo CTT.
         </p>
         <div className="-mx-4 -mb-4 overflow-x-auto">
-          <table className="w-full">
+          <DataTable id="debtors">
             <thead className="border-y border-stone-100 bg-stone-50">
               <tr>
                 <th className={th}>Condomínio · fração</th><th className={th}>Proprietário</th>
@@ -48,16 +49,16 @@ async function Debtors() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {debtors.map((d) => (
-                <tr key={d.fractionId}>
+                <tr data-row-id={d.fractionId} key={d.fractionId}>
                   <td className={td}>
                     <Link href={`/admin/condominiums/${d.condominiumId}?f=overdue`} className="text-brand-700 hover:underline">{d.condominium}</Link>
                     <span className="ml-1 font-medium">· {d.designation}</span>
                   </td>
                   <td className={td}>{d.ownerName ?? "—"}</td>
                   <td className={`${td} text-right tabular-nums`}>{d.overdueCount}</td>
-                  <td className={`${td} text-right tabular-nums text-red-700`}>{formatEur(d.overdueCents)}</td>
-                  <td className={`${td} text-xs`}>{fmtDate(d.oldestDue)}</td>
-                  <td className={`${td} text-xs`}>
+                  <td data-value={d.overdueCents / 100} className={`${td} text-right tabular-nums text-red-700`}>{formatEur(d.overdueCents)}</td>
+                  <td data-value={new Date(d.oldestDue).toISOString()} className={`${td} text-xs`}>{fmtDate(d.oldestDue)}</td>
+                  <td data-value={d.lastLetterAt ? new Date(d.lastLetterAt).toISOString() : ""} className={`${td} text-xs`}>
                     {d.lastLetterAt ? <>{fmtDate(d.lastLetterAt)}<div className="font-mono text-stone-500">{d.lastTracking}</div></> : "—"}
                   </td>
                   <td className={`${td} whitespace-nowrap`}>
@@ -69,7 +70,7 @@ async function Debtors() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </>

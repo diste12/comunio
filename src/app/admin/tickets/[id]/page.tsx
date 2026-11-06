@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/data-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -90,70 +91,22 @@ async function Ticket({ params }: { params: PageProps<"/admin/tickets/[id]">["pa
               {r.scope} · prazo {fmtDate(r.deadline)}
             </p>
             <div className="-mx-4 overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-y border-stone-100 bg-stone-50">
-                  <tr>
-                    <th className={th}></th>
-                    {r.quotes.map((q) => (
-                      <th key={q.invitationId} className={`${th} normal-case`}>
-                        <span className="text-sm font-semibold text-stone-800">{q.vendorName}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+              <DataTable id={`quotes-${r.id}`}>
+                <thead className="bg-stone-50"><tr>
+                  <th className={th}>Fornecedor</th><th className={th}>Preço</th><th className={th}>Prazo (dias)</th><th className={th}>Garantia (meses)</th><th className={th}>Notas</th><th className={th}>Link</th><th className={th}>Ações</th>
+                </tr></thead>
                 <tbody className="divide-y divide-stone-100">
-                  <tr>
-                    <td className={`${td} text-stone-500`}>Preço</td>
-                    {r.quotes.map((q) => (
-                      <td key={q.invitationId} className={`${td} tabular-nums`}>
-                        {q.quote ? (
-                          <span className={q.quote.amountCents === cheapest ? "font-semibold text-brand-700" : ""}>
-                            {formatEur(q.quote.amountCents)} {q.quote.amountCents === cheapest && submitted.length > 1 && <Badge tone="green">mais barato</Badge>}
-                          </span>
-                        ) : (
-                          <span className="text-stone-400">{q.viewedAt ? "visto, sem resposta" : "por abrir"}</span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className={`${td} text-stone-500`}>Prazo de execução</td>
-                    {r.quotes.map((q) => (
-                      <td key={q.invitationId} className={td}>
-                        {q.quote ? (
-                          <span className={q.quote.leadTimeDays === fastest ? "font-semibold text-brand-700" : ""}>{q.quote.leadTimeDays} dias</span>
-                        ) : "—"}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className={`${td} text-stone-500`}>Garantia</td>
-                    {r.quotes.map((q) => <td key={q.invitationId} className={td}>{q.quote ? `${q.quote.warrantyMonths} meses` : "—"}</td>)}
-                  </tr>
-                  <tr>
-                    <td className={`${td} text-stone-500`}>Notas</td>
-                    {r.quotes.map((q) => <td key={q.invitationId} className={`${td} text-xs text-stone-600`}>{q.quote?.notes ?? "—"}</td>)}
-                  </tr>
-                  <tr>
-                    <td className={`${td} text-stone-500`}>Link</td>
-                    {r.quotes.map((q) => (
-                      <td key={q.invitationId} className={`${td} text-xs`}>
-                        <a href={q.link} target="_blank" className="break-all text-brand-700 underline">{q.link.replace(/^https?:\/\//, "")}</a>
-                      </td>
-                    ))}
-                  </tr>
-                  {r.status === "OPEN" && (
-                    <tr>
-                      <td className={td}></td>
-                      {r.quotes.map((q) => (
-                        <td key={q.invitationId} className={td}>
-                          {q.quote && <ActionButton action={awardQuoteAction.bind(null, t.id, r.id, q.quote.id)} label="Adjudicar" />}
-                        </td>
-                      ))}
-                    </tr>
-                  )}
+                  {r.quotes.map(q => <tr key={q.invitationId} data-row-id={q.invitationId}>
+                    <td className={td}>{q.vendorName}</td>
+                    <td className={td} data-value={q.quote ? q.quote.amountCents / 100 : ""}>{q.quote ? <>{formatEur(q.quote.amountCents)} {q.quote.amountCents === cheapest && submitted.length > 1 && <Badge tone="green">mais barato</Badge>}</> : q.viewedAt ? "visto, sem resposta" : "por abrir"}</td>
+                    <td className={td} data-value={q.quote?.leadTimeDays ?? ""}>{q.quote ? <span className={q.quote.leadTimeDays === fastest ? "font-semibold text-brand-700" : ""}>{q.quote.leadTimeDays}</span> : "—"}</td>
+                    <td className={td} data-value={q.quote?.warrantyMonths ?? ""}>{q.quote?.warrantyMonths ?? "—"}</td>
+                    <td className={td}>{q.quote?.notes ?? "—"}</td>
+                    <td className={td}><a href={q.link} target="_blank" className="text-brand-700 underline">{q.link}</a></td>
+                    <td className={td}>{r.status === "OPEN" && q.quote && <ActionButton action={awardQuoteAction.bind(null, t.id, r.id, q.quote.id)} label="Adjudicar" bulk={false} />}</td>
+                  </tr>)}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
             {r.status === "AWARDED" && (
               <div className="mt-4">
